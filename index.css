@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-chola: #FF6B35;
+  --color-malandra: #2EC4B6;
+  --color-fresa: #E71D36;
+  --color-hybrida: #9D4EDD;
+  --color-void: #0F0F1A;
+
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --shadow-quantum: 0 0 40px rgba(157, 78, 221, 0.1);
+}
+
+body {
+  background-color: #0F0F1A;
+  width: 480px;
+  min-height: 600px;
+  margin: 0;
+  color: #E2E8F0;
+  overflow-x: hidden;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2EC4B6;
+  border-radius: 10px;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Compatibilidad visual local con las clases de animación usadas por la UI */
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: chalamandra-fade-in;
+  animation-duration: 500ms;
+}
+
+.slide-in-from-right-4 {
+  animation-name: chalamandra-slide-right;
+  animation-duration: 300ms;
+}
+
+.slide-in-from-bottom-6 {
+  animation-name: chalamandra-slide-bottom;
+  animation-duration: 700ms;
+}
+
+@keyframes chalamandra-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes chalamandra-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes chalamandra-slide-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -265,7 +265,7 @@ const App: React.FC = () => {
                 <h4 className="text-[10px] font-black text-chola mb-3 flex items-center gap-2 uppercase tracking-tighter">
                   <Zap className="w-3 h-3" /> Tesis: {thesisStyle.toUpperCase()}
                 </h4>
-                <div className="text-xs leading-relaxed text-slate-300 font-light prose prose-invert max-w-none">
+                <div className="text-xs leading-relaxed text-slate-300 font-light">
                   {result.thesis}
                 </div>
                 {result.thesisSources && result.thesisSources.length > 0 && (
@@ -283,7 +283,7 @@ const App: React.FC = () => {
                 <h4 className="text-[10px] font-black text-malandra mb-3 flex items-center gap-2 uppercase tracking-tighter">
                   <Shuffle className="w-3 h-3" /> Antítesis: {antithesisStyle.toUpperCase()}
                 </h4>
-                <div className="text-xs leading-relaxed text-slate-300 font-light prose prose-invert max-w-none">
+                <div className="text-xs leading-relaxed text-slate-300 font-light">
                   {result.antithesis}
                 </div>
               </div>
