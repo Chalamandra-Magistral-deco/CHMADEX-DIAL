@@ -13,12 +13,18 @@ import {
   Cpu,
   Cloud,
   History,
-  Trash2
+  Trash2,
+  KeyRound,
+  Check,
+  X,
+  Settings,
+  AlertTriangle
 } from 'lucide-react';
 import { chalamandra } from './services/chalamandraService';
 import { DialecticStyle, DialecticalState, ProcessingStatus, CapabilityStatus, PromptHistory } from './types';
 
 const App: React.FC = () => {
+  // ============ Estado principal ============
   const [input, setInput] = useState('');
   const [thesisStyle, setThesisStyle] = useState<DialecticStyle>('chola');
   const [antithesisStyle, setAntithesisStyle] = useState<DialecticStyle>('malandra');
@@ -29,20 +35,32 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<PromptHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  // ============ Estado de configuración de API Key ============
+  const [hasKey, setHasKey] = useState<boolean | null>(null); // null = cargando
+  const [showSettings, setShowSettings] = useState(false);
+  const [tempKey, setTempKey] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+
   useEffect(() => {
     const init = async () => {
       const caps = await chalamandra.checkCapabilities();
       setCapabilities(caps);
 
-      // Load last selected text from storage if running as extension
+      // Verificar si hay API key configurada
+      const keyExists = await chalamandra.hasApiKey();
+      setHasKey(keyExists);
+      if (!keyExists) setShowSettings(true);
+
+      // Cargar texto seleccionado / historial
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.local.get(['lastSelectedText', 'chalamandra_history'], (data) => {
           if (data.lastSelectedText) {
-            setInput(data.lastSelectedText);
+            setInput(data.lastSelectedText as string);
             chrome.storage.local.remove('lastSelectedText');
           }
           if (data.chalamandra_history) {
-            setHistory(data.chalamandra_history);
+            setHistory(data.chalamandra_history as PromptHistory[]);
           }
         });
       }
@@ -50,6 +68,41 @@ const App: React.FC = () => {
     init();
   }, []);
 
+  // ============ Handlers de API Key ============
+  const handleSaveKey = async () => {
+    const trimmed = tempKey.trim();
+    if (!trimmed) {
+      setSettingsMessage('La key no puede estar vacía.');
+      return;
+    }
+    if (!trimmed.startsWith('AIza')) {
+      setSettingsMessage('Las keys de Gemini empiezan con "AIza...". Verifica tu key.');
+      return;
+    }
+    setSavingKey(true);
+    setSettingsMessage(null);
+    try {
+      await chalamandra.saveApiKey(trimmed);
+      setHasKey(true);
+      setShowSettings(false);
+      setTempKey('');
+      setSettingsMessage(null);
+    } catch (e) {
+      setSettingsMessage('No se pudo guardar. Intenta de nuevo.');
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const handleClearKey = async () => {
+    await chalamandra.clearApiKey();
+    setHasKey(false);
+    setTempKey('');
+    setShowSettings(true);
+    setSettingsMessage('Key eliminada.');
+  };
+
+  // ============ Handlers del flujo principal ============
   const saveToHistory = (newResult: DialecticalState) => {
     const entry: PromptHistory = {
       id: crypto.randomUUID(),
@@ -83,7 +136,8 @@ const App: React.FC = () => {
       setStatus({ step: 'complete' });
     } catch (e) {
       console.error(e);
-      setStatus({ step: 'error', message: 'Fallo en la sincronización cuántica.' });
+      const msg = e instanceof Error ? e.message : 'Fallo en la sincronización cuántica.';
+      setStatus({ step: 'error', message: msg });
     }
   };
 
@@ -104,7 +158,8 @@ const App: React.FC = () => {
       saveToHistory(disruptionResult);
       setStatus({ step: 'complete' });
     } catch (e) {
-      setStatus({ step: 'error', message: 'Error de disrupción.' });
+      const msg = e instanceof Error ? e.message : 'Error de disrupción.';
+      setStatus({ step: 'error', message: msg });
     }
   };
 
@@ -115,6 +170,115 @@ const App: React.FC = () => {
     }
   };
 
+  // ============ Pantalla de carga inicial ============
+  if (hasKey === null) {
+    return (
+      <div className="p-6 flex items-center justify-center" style={{ minHeight: '300px' }}>
+        <Loader2 className="animate-spin w-6 h-6 text-malandra" />
+      </div>
+    );
+  }
+
+  // ============ Pantalla de configuración de API Key ============
+  if (showSettings) {
+    return (
+      <div className="p-6 flex flex-col gap-5 select-none animate-in fade-in duration-500">
+        <header className="flex items-center gap-3 border-b border-white/10 pb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-chola via-malandra to-fresa p-[1px]">
+            <div className="w-full h-full bg-void rounded-xl flex items-center justify-center">
+              <KeyRound className="text-malandra w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-lg font-black tracking-tighter uppercase bg-gradient-to-r from-chola via-malandra to-fresa bg-clip-text text-transparent italic leading-none">
+              Configuración
+            </h1>
+            <p className="text-[9px] font-mono text-slate-500 uppercase tracking-[0.2em] mt-1">
+              API Key de Gemini
+            </p>
+          </div>
+        </header>
+
+        <div className="glass-panel rounded-xl p-4 border-l-2 border-chola space-y-3">
+          <div className="flex items-start gap-2 text-xs text-slate-300 leading-relaxed">
+            <AlertTriangle className="w-4 h-4 text-chola flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold mb-1 text-chola">Necesitas una API Key de Gemini</p>
+              <p className="font-light text-slate-400">
+                Tu key se guarda <strong className="text-slate-200">solo en este navegador</strong> y nunca se envía a ningún servidor. La extensión la usa para llamar directamente a Google.
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://aistudio.google.com/apikey"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-malandra hover:opacity-70 transition-opacity"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Obtener API Key gratis en Google AI Studio
+          </a>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">
+            API Key
+          </label>
+          <input
+            type="password"
+            value={tempKey}
+            onChange={(e) => setTempKey(e.target.value)}
+            placeholder="AIzaSy..."
+            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:ring-1 focus:ring-malandra outline-none transition-all placeholder:text-slate-600 font-mono"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          {settingsMessage && (
+            <p className={`text-[10px] font-mono ${settingsMessage.includes('eliminada') || settingsMessage.includes('éxito') ? 'text-emerald-400' : 'text-fresa'}`}>
+              {settingsMessage}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleSaveKey}
+            disabled={savingKey || !tempKey.trim()}
+            className="flex-1 bg-gradient-to-r from-chola to-malandra text-white font-black rounded-xl py-3 flex items-center justify-center gap-2 shadow-lg shadow-chola/10 hover:shadow-malandra/20 transition-all text-[10px] uppercase tracking-widest disabled:opacity-30 active:scale-95"
+          >
+            {savingKey ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+            {savingKey ? 'Guardando...' : 'Guardar Key'}
+          </button>
+
+          {hasKey && (
+            <>
+              <button
+                onClick={() => { setShowSettings(false); setSettingsMessage(null); }}
+                className="flex-1 glass-panel border-white/10 text-slate-300 font-bold rounded-xl py-3 flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest hover:bg-white/5 transition-all active:scale-95"
+              >
+                <X className="w-3.5 h-3.5" />
+                Cancelar
+              </button>
+              <button
+                onClick={handleClearKey}
+                className="glass-panel border-fresa/30 text-fresa font-bold rounded-xl py-3 px-4 flex items-center justify-center gap-2 text-[10px] uppercase hover:bg-fresa/10 transition-all active:scale-95"
+                title="Eliminar key guardada"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="text-[9px] text-slate-600 leading-relaxed border-t border-white/5 pt-3">
+          <p className="font-mono uppercase tracking-widest mb-1">Privacidad</p>
+          <p>La API key se almacena usando <code className="text-slate-500">chrome.storage.local</code>, cifrado en el perfil de tu Chrome. Se borra al desinstalar la extensión. Nunca sale de tu navegador.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ============ Pantalla principal ============
   return (
     <div className="p-6 flex flex-col gap-6 select-none animate-in fade-in duration-500">
       <header className="flex justify-between items-center border-b border-white/10 pb-4">
@@ -140,6 +304,13 @@ const App: React.FC = () => {
              title="Historial de decodificaciones"
            >
              <History className="w-4 h-4" />
+           </button>
+           <button
+             onClick={() => { setTempKey(''); setSettingsMessage(null); setShowSettings(true); }}
+             className="p-2 rounded-lg hover:bg-white/5 text-slate-400 transition-colors"
+             title="Configuración de API Key"
+           >
+             <Settings className="w-4 h-4" />
            </button>
            {capabilities && (
               <div className={`flex items-center gap-2 text-[8px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${capabilities.languageModel === 'local' ? 'text-hybrida border-hybrida/20 bg-hybrida/5' : 'text-emerald-500 border-emerald-500/10 bg-emerald-500/5'}`}>
@@ -253,9 +424,18 @@ const App: React.FC = () => {
             </div>
           </main>
 
-          {status.step !== 'idle' && status.step !== 'complete' && (
+          {status.step !== 'idle' && status.step !== 'complete' && status.step !== 'error' && (
             <div className="py-4 text-center border-y border-white/5 animate-pulse">
                <span className="text-[10px] font-mono text-hybrida uppercase tracking-widest">{status.message}</span>
+            </div>
+          )}
+
+          {status.step === 'error' && (
+            <div className="glass-panel rounded-xl p-4 border-l-2 border-fresa text-fresa text-xs">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{status.message}</span>
+              </div>
             </div>
           )}
 
@@ -265,14 +445,14 @@ const App: React.FC = () => {
                 <h4 className="text-[10px] font-black text-chola mb-3 flex items-center gap-2 uppercase tracking-tighter">
                   <Zap className="w-3 h-3" /> Tesis: {thesisStyle.toUpperCase()}
                 </h4>
-                <div className="text-xs leading-relaxed text-slate-300 font-light">
+                <div className="text-xs leading-relaxed text-slate-300 font-light whitespace-pre-wrap">
                   {result.thesis}
                 </div>
                 {result.thesisSources && result.thesisSources.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap gap-2">
                     {result.thesisSources.map((s, i) => (
                       <a key={i} href={s.uri} target="_blank" rel="noreferrer" className="text-[9px] bg-white/5 px-2 py-1 rounded flex items-center gap-1.5 hover:bg-white/10 text-slate-400 hover:text-malandra transition-colors max-w-[140px] truncate">
-                        <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" /> {new URL(s.uri).hostname.replace('www.', '')}
+                        <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" /> {s.title || new URL(s.uri).hostname.replace('www.', '')}
                       </a>
                     ))}
                   </div>
@@ -283,7 +463,7 @@ const App: React.FC = () => {
                 <h4 className="text-[10px] font-black text-malandra mb-3 flex items-center gap-2 uppercase tracking-tighter">
                   <Shuffle className="w-3 h-3" /> Antítesis: {antithesisStyle.toUpperCase()}
                 </h4>
-                <div className="text-xs leading-relaxed text-slate-300 font-light">
+                <div className="text-xs leading-relaxed text-slate-300 font-light whitespace-pre-wrap">
                   {result.antithesis}
                 </div>
               </div>
@@ -311,7 +491,7 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div className="text-sm font-semibold leading-relaxed text-white italic border-l border-white/10 pl-4 py-1">
+                <div className="text-sm font-semibold leading-relaxed text-white italic border-l border-white/10 pl-4 py-1 whitespace-pre-wrap">
                   "{result.synthesis}"
                 </div>
                 <div className="mt-6 flex justify-between items-center text-[8px] font-mono text-slate-600 uppercase tracking-widest pt-4 border-t border-white/5">
