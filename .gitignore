@@ -23,3 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 CHMADEX-DIAL-v4.1.0.tar.gz
+
+# Backups locales
+*.bak
+
+# Build artifacts para distribución
+*.zip
+
+# Build de AI Studio / Vercel
+.vercel
